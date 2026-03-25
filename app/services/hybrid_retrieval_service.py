@@ -81,14 +81,16 @@ class HybridRetrievalService:
         sys_prompt = (
             "You are a helpful data assistant for answering O2C (Order2Cash) logistics queries based on the provided SAP dataset.\\n\\n"
             "GUIDELINES:\\n"
-            "- If the question is about the dataset (Orders, Customers, Deliveries, Billing, Products, Plants), answer accurately using the context.\\n"
+            "- If the question is about the dataset (Orders, Customers, Deliveries, Billing, Products, Plants), answer accurately using ONLY the provided context.\\n"
+            "- **STRICT NO-HALLUCINATION POLICY**: If the context is empty or does not contain the specific ID/Product requested, you MUST say: 'I found no data for [Entity] in the current dataset.'\\n"
+            "- **NEVER** invent placeholder IDs, names, or prices (e.g. do not use SO-123, Product A, $100 unless they are in the context).\\n"
             "- If the question is slightly out of scope but related to logistics or business, try to be helpful while staying grounded in the data.\\n"
             "- If the question is completely unrelated to the dataset (e.g. general trivia, creative writing), politely state: "
             '"This system is designed to answer questions related to the provided dataset only."\\n\\n'
             "FORMATTING RULES:\\n"
             "- Always format your responses using professional Markdown.\\n"
             "- Use bolding for Entity IDs (e.g. **SO-123**) and key metrics.\\n"
-            "- For O2C flows, always follow this step-by-step numbered chain format:\\n"
+            "- For O2C flows, always follow this step-by-step numbered chain format (ONLY if you have the real data):\\n"
             "  1. **Step 1 — Sales Order**: ID=..., Customer=...\\n"
             "  2. **Step 2 — Delivery**: ID=..., Status=...\\n"
             "  3. **Step 3 — Billing**: ID=..., Total=...\\n"
@@ -119,36 +121,35 @@ class HybridRetrievalService:
         node_ids = [r['id'] for r in v_results]
         g_results = self.graph_expand(node_ids)
         
-        if "trace" in lower_query or "flow" in lower_query or "billing document " in lower_query:
-            words = lower_query.split()
-            doc_id = None
-            for w in words:
-                if w.isdigit() and len(w) > 4:  # billing doc IDs are long numbers
-                    doc_id = w
-                    break
-            if doc_id:
+        # Improved ID Extraction for various O2C stages (Sales Order '74...', Delivery '80...', Billing '90...')
+        doc_id_match = re.search(r'\b(74\d{4}|80\d{6}|90\d{6})\b', user_query) or re.search(r'\b(\d{6,10})\b', user_query)
+        
+        if doc_id_match:
+            doc_id = doc_id_match.group(1)
+            if any(x in lower_query for x in ["trace", "flow", "lifecycle", "order", "delivery", "billing", "document"]):
+                # Universal O2C trace starting from ANY node in the chain
                 flow_query = """
-                MATCH (bd:BillingDocument)
-                WHERE bd.id = $doc_id OR bd.id = toString($doc_id) OR bd.id = toInteger($doc_id)
-                OPTIONAL MATCH (bd)-[:HAS_ITEM]->(bi:BillingDocumentItem)
-                OPTIONAL MATCH (bi)<-[:BILLED_IN]-(di:DeliveryItem)
-                OPTIONAL MATCH (di)<-[:HAS_ITEM]-(d:Delivery)
-                OPTIONAL MATCH (di)<-[:SHIPPED_IN]-(si:SalesOrderItem)
-                OPTIONAL MATCH (si)<-[:HAS_ITEM]-(so:SalesOrder)
-                OPTIONAL MATCH (so)<-[:PLACE_ORDER]-(c:Customer)
-                OPTIONAL MATCH (si)-[:REQUESTS_PRODUCT]->(p:Product)
+                MATCH (n)
+                WHERE n.id = $doc_id OR n.id = toString($doc_id) OR n.id = toInteger($doc_id)
+                WITH n
+                OPTIONAL MATCH (so:SalesOrder) WHERE so.id = n.id OR (n:SalesOrderItem AND (so)-[:HAS_ITEM]->(n))
+                OPTIONAL MATCH (so)-[:HAS_ITEM]->(si:SalesOrderItem)
+                OPTIONAL MATCH (si)<-[:SHIPPED_IN]-(di:DeliveryItem)<-[:HAS_ITEM]-(d:Delivery)
+                OPTIONAL MATCH (di)<-[:BILLED_IN]-(bi:BillingDocumentItem)<-[:HAS_ITEM]-(bd:BillingDocument)
                 OPTIONAL MATCH (bd)-[:RECORDED_IN]->(je:JournalEntry)
                 OPTIONAL MATCH (je)-[:CLEARED_BY]->(pay:Payment)
+                OPTIONAL MATCH (si)-[:REQUESTS_PRODUCT]->(p:Product)
+                OPTIONAL MATCH (so)<-[:PLACE_ORDER]-(c:Customer)
                 RETURN 
-                    properties(bd)  AS billing_document,
-                    collect(DISTINCT properties(bi))  AS billing_items,
-                    collect(DISTINCT properties(d))   AS deliveries,
-                    collect(DISTINCT properties(di))  AS delivery_items,
-                    collect(DISTINCT properties(so))  AS sales_orders,
-                    collect(DISTINCT properties(si))  AS sales_order_items,
-                    collect(DISTINCT properties(c))   AS customers,
-                    collect(DISTINCT properties(p))   AS products,
-                    collect(DISTINCT properties(je))  AS journal_entries,
+                    properties(so) AS sales_order,
+                    collect(DISTINCT properties(si)) AS sales_order_items,
+                    collect(DISTINCT properties(d)) AS deliveries,
+                    collect(DISTINCT properties(di)) AS delivery_items,
+                    collect(DISTINCT properties(bd)) AS billing_documents,
+                    collect(DISTINCT properties(bi)) AS billing_items,
+                    collect(DISTINCT properties(c)) AS customers,
+                    collect(DISTINCT properties(p)) AS products,
+                    collect(DISTINCT properties(je)) AS journal_entries,
                     collect(DISTINCT properties(pay)) AS payments
                 LIMIT 1
                 """
@@ -157,14 +158,14 @@ class HybridRetrievalService:
                     try:
                         flow_res = neo4j_client.execute_query(flow_query, {"doc_id": doc_id})
                         if flow_res:
-                            g_results.append({"Full O2C Flow Trace for Billing Document": flow_res[0]})
+                            g_results.append({"Unified O2C Lifecycle Trace": flow_res[0]})
                         break
                     except Exception as e:
                         if "routing information" in str(e).lower() and retries > 0:
                             time.sleep(1)
                             retries -= 1
                             continue
-                        logger.error(f"Flow trace query failed: {e}")
+                        logger.error(f"Universal trace query failed: {e}")
                         break
 
         if "highest" in lower_query or "most" in lower_query or "billing documents" in lower_query:
