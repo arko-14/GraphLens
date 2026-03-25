@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import time
 from typing import Dict, Any, List
 from app.db.neo4j_client import neo4j_client
 from app.core.config import settings
@@ -31,20 +32,25 @@ class HybridRetrievalService:
         return list(embedder.embed([query]))[0].tolist()
 
     def vector_search(self, query_embedding: List[float], top_k: int = 5) -> List[Dict[str, Any]]:
-        # This is a hypothetical neo4j vector search query; adjust for Neo4j version
         cypher = """
         CALL db.index.vector.queryNodes('product_embedding_idx', $top_k, $vector)
         YIELD node, score
         RETURN node.id AS id, node.description AS text, score
         """
-        try:
-            return neo4j_client.execute_query(cypher, {"top_k": top_k, "vector": query_embedding})
-        except Exception as e:
-            logger.error(f"Vector search failed (index might not exist): {e}")
-            return []
+        retries = 2
+        while retries >= 0:
+            try:
+                return neo4j_client.execute_query(cypher, {"top_k": top_k, "vector": query_embedding})
+            except Exception as e:
+                if "routing information" in str(e).lower() and retries > 0:
+                    logger.warning(f"Aura routing error, retrying search (retries left: {retries})...")
+                    time.sleep(1)
+                    retries -= 1
+                    continue
+                logger.error(f"Vector search failed (index might not exist or Aura busy): {e}")
+                return []
 
     def graph_expand(self, start_ids: List[str]) -> List[Any]:
-        # Simple 1-hop expansion from seed nodes
         if not start_ids:
             return []
         cypher = """
@@ -53,7 +59,17 @@ class HybridRetrievalService:
         RETURN labels(n)[0] AS n_label, n.id AS n_id, type(r) AS rel, labels(m)[0] AS m_label, m.id AS m_id
         LIMIT 50
         """
-        return neo4j_client.execute_query(cypher, {"start_ids": start_ids})
+        retries = 2
+        while retries >= 0:
+            try:
+                return neo4j_client.execute_query(cypher, {"start_ids": start_ids})
+            except Exception as e:
+                if "routing information" in str(e).lower() and retries > 0:
+                    time.sleep(1)
+                    retries -= 1
+                    continue
+                logger.error(f"Graph expansion failed: {e}")
+                return []
 
     def synthesize_answer(self, user_query: str, context_nodes: List[Dict], graph_context: List[Any], history: List[Dict[str, str]] = None) -> str:
         if not groq_client:
@@ -134,12 +150,20 @@ class HybridRetrievalService:
                     collect(DISTINCT properties(pay)) AS payments
                 LIMIT 1
                 """
-                try:
-                    flow_res = neo4j_client.execute_query(flow_query, {"doc_id": doc_id})
-                    if flow_res:
-                        g_results.append({"Full O2C Flow Trace for Billing Document": flow_res[0]})
-                except Exception as e:
-                    logger.error(f"Flow trace query failed: {e}")
+                retries = 2
+                while retries >= 0:
+                    try:
+                        flow_res = neo4j_client.execute_query(flow_query, {"doc_id": doc_id})
+                        if flow_res:
+                            g_results.append({"Full O2C Flow Trace for Billing Document": flow_res[0]})
+                        break
+                    except Exception as e:
+                        if "routing information" in str(e).lower() and retries > 0:
+                            time.sleep(1)
+                            retries -= 1
+                            continue
+                        logger.error(f"Flow trace query failed: {e}")
+                        break
 
         if "highest" in lower_query or "most" in lower_query or "billing documents" in lower_query:
             agg_query = """
@@ -147,14 +171,22 @@ class HybridRetrievalService:
             RETURN p.id AS product_id, p.description AS name, count(DISTINCT bd.id) AS billing_document_count
             ORDER BY billing_document_count DESC LIMIT 5
             """
-            try:
-                agg_res = neo4j_client.execute_query(agg_query)
-                g_results.append({"Analytical Context for 'Highest/Most' queries": agg_res})
-                # Also bulk-inject these products as highlight nodes
-                for row in agg_res:
-                    v_results.append({"id": row["product_id"], "description": row.get("name", row["product_id"])})
-            except Exception as e:
-                logger.error(f"Agg query failed: {e}")
+            retries = 2
+            while retries >= 0:
+                try:
+                    agg_res = neo4j_client.execute_query(agg_query)
+                    g_results.append({"Analytical Context for 'Highest/Most' queries": agg_res})
+                    # Also bulk-inject these products as highlight nodes
+                    for row in agg_res:
+                        v_results.append({"id": row["product_id"], "description": row.get("name", row["product_id"])})
+                    break
+                except Exception as e:
+                    if "routing information" in str(e).lower() and retries > 0:
+                        time.sleep(1)
+                        retries -= 1
+                        continue
+                    logger.error(f"Agg query failed: {e}")
+                    break
 
         if "broken" in lower_query or "incomplete" in lower_query or "not billed" in lower_query or "without delivery" in lower_query:
             try:
@@ -165,9 +197,7 @@ class HybridRetrievalService:
                 RETURN DISTINCT so.id AS sales_order_id, count(di) AS unmatched_deliveries
                 ORDER BY unmatched_deliveries DESC LIMIT 10
                 """
-                res1 = neo4j_client.execute_query(delivered_not_billed_q)
-                g_results.append({"Delivered But NOT Billed (Broken Flow - Type 1)": res1})
-
+                
                 # Case 2: BillingDocuments with NO delivery link
                 billed_no_delivery_q = """
                 MATCH (so:SalesOrder)-[:HAS_ITEM]->(si:SalesOrderItem)
@@ -176,9 +206,7 @@ class HybridRetrievalService:
                 RETURN DISTINCT so.id AS sales_order_id
                 LIMIT 10
                 """
-                res2 = neo4j_client.execute_query(billed_no_delivery_q)
-                g_results.append({"Billed WITHOUT Delivery (Broken Flow - Type 2)": res2})
-
+                
                 # Case 3: SalesOrders with no delivery at all
                 no_delivery_q = """
                 MATCH (so:SalesOrder)-[:HAS_ITEM]->(si:SalesOrderItem)
@@ -186,10 +214,28 @@ class HybridRetrievalService:
                 RETURN DISTINCT so.id AS sales_order_id, count(si) AS items_without_delivery
                 ORDER BY items_without_delivery DESC LIMIT 10
                 """
-                res3 = neo4j_client.execute_query(no_delivery_q)
-                g_results.append({"Sales Orders With NO Delivery (Incomplete Flow - Type 3)": res3})
+                
+                retries = 2
+                while retries >= 0:
+                    try:
+                        res1 = neo4j_client.execute_query(delivered_not_billed_q)
+                        g_results.append({"Delivered But NOT Billed (Broken Flow - Type 1)": res1})
+                        
+                        res2 = neo4j_client.execute_query(billed_no_delivery_q)
+                        g_results.append({"Billed WITHOUT Delivery (Broken Flow - Type 2)": res2})
+                        
+                        res3 = neo4j_client.execute_query(no_delivery_q)
+                        g_results.append({"Sales Orders With NO Delivery (Incomplete Flow - Type 3)": res3})
+                        break
+                    except Exception as e:
+                        if "routing information" in str(e).lower() and retries > 0:
+                            time.sleep(1)
+                            retries -= 1
+                            continue
+                        logger.error(f"Broken flow query failed: {e}")
+                        break
             except Exception as e:
-                logger.error(f"Broken flow query failed: {e}")
+                logger.error(f"Broken flow block failed: {e}")
 
         # Gather node objects that are highly relevant to dynamically draw/highlight in UI
         highlight_nodes = [{"id": r['id'], "label": r.get('description', r.get('name', r['id']))[:20], "group": "Product"} for r in v_results]
