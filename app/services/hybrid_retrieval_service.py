@@ -79,20 +79,22 @@ class HybridRetrievalService:
         context_str += "Graph Traversal Context:\\n" + json.dumps(graph_context, default=str)
 
         sys_prompt = (
-            "You are a helpful data assistant for answering O2C (Order2Cash) logistics queries. "
-            "Use the provided graph data to answer the user query based solely on the dataset.\\n\\n"
-            "CRITICAL GUARDRAIL - STRICT COMPLIANCE:\\n"
-            "If the user asks a conversational question, general knowledge question, requests creative writing, "
-            "or asks ANYTHING completely unrelated to the SAP O2C dataset (e.g. Sales Orders, Customers, "
-            "Deliveries, Billing, Products, Plants), you MUST reject the prompt and immediately output EXACTLY this string:\\n"
+            "You are a helpful data assistant for answering O2C (Order2Cash) logistics queries based on the provided SAP dataset.\\n\\n"
+            "GUIDELINES:\\n"
+            "- If the question is about the dataset (Orders, Customers, Deliveries, Billing, Products, Plants), answer accurately using the context.\\n"
+            "- If the question is slightly out of scope but related to logistics or business, try to be helpful while staying grounded in the data.\\n"
+            "- If the question is completely unrelated to the dataset (e.g. general trivia, creative writing), politely state: "
             '"This system is designed to answer questions related to the provided dataset only."\\n\\n'
             "FORMATTING RULES:\\n"
-            "- Always format your responses clearly using Markdown.\\n"
-            "- Use bolding for Entity IDs or important metrics.\\n"
-            "- When tracing a flow (Sales Order → Delivery → Billing → Journal), format it as a numbered step-by-step chain:\\n"
-            "  e.g. **Step 1 — Sales Order**: ID=..., Customer=... → **Step 2 — Delivery**: ...\\n"
-            "- Use structured tables or clean bulleted lists when presenting multiple items.\\n"
-            "- Keep your final analysis concise, professional, and highly organized."
+            "- Always format your responses using professional Markdown.\\n"
+            "- Use bolding for Entity IDs (e.g. **SO-123**) and key metrics.\\n"
+            "- For O2C flows, always follow this step-by-step numbered chain format:\\n"
+            "  1. **Step 1 — Sales Order**: ID=..., Customer=...\\n"
+            "  2. **Step 2 — Delivery**: ID=..., Status=...\\n"
+            "  3. **Step 3 — Billing**: ID=..., Total=...\\n"
+            "  4. **Step 4 — Payment**: ...\\n"
+            "- Use tables for lists of items to ensure visual clarity.\\n"
+            "- If you find 'Broken Flow' evidence (Missing relationships), clearly highlight it as an alert or bolded note."
         )
         messages = [{"role": "system", "content": sys_prompt}]
         if history:
@@ -127,7 +129,7 @@ class HybridRetrievalService:
             if doc_id:
                 flow_query = """
                 MATCH (bd:BillingDocument)
-                WHERE bd.id = $doc_id OR bd.id = toInteger($doc_id)
+                WHERE bd.id = $doc_id OR bd.id = toString($doc_id) OR bd.id = toInteger($doc_id)
                 OPTIONAL MATCH (bd)-[:HAS_ITEM]->(bi:BillingDocumentItem)
                 OPTIONAL MATCH (bi)<-[:BILLED_IN]-(di:DeliveryItem)
                 OPTIONAL MATCH (di)<-[:HAS_ITEM]-(d:Delivery)

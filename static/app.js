@@ -174,9 +174,13 @@ function sendMessage() {
             }
         } catch(e) { console.warn("Node highlight failed:", e); }
     })
-    .catch(() => {
-        addAgentMessage("I could not connect to the backend. Please try again.");
-        setStatus('Agent is awaiting instructions', false);
+    .catch(err => {
+        console.error("Search failed:", err);
+        const errorMsg = (err.message && err.message.length < 100) 
+            ? `Backend Error: ${err.message}. Please wait a moment for the cloud database to stabilize and try again.`
+            : "I'm having trouble connecting to the database. Please try your search again in a few seconds.";
+        addAgentMessage(errorMsg);
+        setStatus('Ready', false);
     });
 }
 

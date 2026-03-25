@@ -1,6 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from neo4j.exceptions import ServiceUnavailable, RoutingError
 from app.api.routes import search, graph, health, entities
 
 app = FastAPI(title="Graph RAG Engine - SAP O2C")
@@ -11,6 +13,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(ServiceUnavailable)
+@app.exception_handler(RoutingError)
+async def neo4j_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=503,
+        content={"message": "The database is currently busy or unavailable. Please try your request again in a few seconds."},
+    )
+
 
 app.include_router(search.router, prefix="/api/search", tags=["Search"])
 app.include_router(graph.router, prefix="/api/graph", tags=["Graph"])
