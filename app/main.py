@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from neo4j.exceptions import ServiceUnavailable, SessionExpired
+from neo4j.exceptions import ServiceUnavailable, SessionExpired, Neo4jError
 from app.api.routes import search, graph, health, entities
 
 app = FastAPI(title="Graph RAG Engine - SAP O2C")
@@ -16,6 +16,7 @@ app.add_middleware(
 
 @app.exception_handler(ServiceUnavailable)
 @app.exception_handler(SessionExpired)
+@app.exception_handler(Neo4jError)
 async def neo4j_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=503,

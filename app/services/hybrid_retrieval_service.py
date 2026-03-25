@@ -169,7 +169,7 @@ class HybridRetrievalService:
 
         if "highest" in lower_query or "most" in lower_query or "billing documents" in lower_query:
             agg_query = """
-            MATCH (p:Product)<-[:REQUESTS_PRODUCT]-(si:SalesOrderItem)-[:SHIPPED_IN]->(di:DeliveryItem)-[:BILLED_IN]->(bi:BillingDocumentItem)<-[:HAS_ITEM]-(bd:BillingDocument)
+            MATCH (p:Product)<-[:REQUESTS_PRODUCT]-(si:SalesOrderItem)<-[:SHIPPED_IN]-(di:DeliveryItem)<-[:BILLED_IN]-(bi:BillingDocumentItem)<-[:HAS_ITEM]-(bd:BillingDocument)
             RETURN p.id AS product_id, p.description AS name, count(DISTINCT bd.id) AS billing_document_count
             ORDER BY billing_document_count DESC LIMIT 5
             """
