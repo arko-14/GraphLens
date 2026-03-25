@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: graph-rag-engine
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+
+    # These are set in the Render dashboard as secret environment variables.
+    # They are listed here only for documentation — do NOT hardcode values here.
+    envVars:
+      - key: NEO4J_URI
+        sync: false        # Render will prompt you to set this in the dashboard
+      - key: NEO4J_USER
+        sync: false
+      - key: NEO4J_PASSWORD
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false

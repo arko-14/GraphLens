@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+pydantic-settings
+neo4j
+groq
+fastembed

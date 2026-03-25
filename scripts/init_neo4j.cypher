@@ -1,0 +1,16 @@
+// Initialize baseline constraints manually if not using python
+CREATE CONSTRAINT FOR (c:Customer) REQUIRE c.id IS UNIQUE;
+CREATE CONSTRAINT FOR (p:Product) REQUIRE p.id IS UNIQUE;
+CREATE CONSTRAINT FOR (s:SalesOrder) REQUIRE s.id IS UNIQUE;
+CREATE CONSTRAINT FOR (si:SalesOrderItem) REQUIRE si.id IS UNIQUE;
+CREATE CONSTRAINT FOR (d:Delivery) REQUIRE d.id IS UNIQUE;
+CREATE CONSTRAINT FOR (di:DeliveryItem) REQUIRE di.id IS UNIQUE;
+CREATE CONSTRAINT FOR (bd:BillingDocument) REQUIRE bd.id IS UNIQUE;
+CREATE CONSTRAINT FOR (bdi:BillingDocumentItem) REQUIRE bdi.id IS UNIQUE;
+CREATE CONSTRAINT FOR (j:JournalEntry) REQUIRE j.id IS UNIQUE;
+CREATE CONSTRAINT FOR (pa:Payment) REQUIRE pa.id IS UNIQUE;
+CREATE CONSTRAINT FOR (pl:Plant) REQUIRE pl.id IS UNIQUE;
+
+// Indexes
+CREATE FULLTEXT INDEX productDescription IF NOT EXISTS FOR (n:Product) ON EACH [n.description];
+CREATE FULLTEXT INDEX customerName IF NOT EXISTS FOR (n:Customer) ON EACH [n.name];

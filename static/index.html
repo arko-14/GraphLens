@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapping / Order to Cash</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=4">
+</head>
+<body>
+
+<!-- Top Navigation Bar -->
+<nav class="topbar">
+    <button class="topbar-icon" id="toggleSidebar" title="Toggle sidebar">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <rect x="1" y="1" width="6" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/>
+            <rect x="10" y="1" width="7" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/>
+        </svg>
+    </button>
+    <div class="topbar-breadcrumb">
+        <span class="breadcrumb-muted">Mapping</span>
+        <span class="breadcrumb-sep">/</span>
+        <span class="breadcrumb-active">Order to Cash</span>
+    </div>
+</nav>
+
+<!-- Main layout -->
+<div class="app-layout">
+
+    <!-- Left: Graph -->
+    <div class="graph-panel" id="graphPanel">
+        <div id="mynetwork"></div>
+
+        <!-- Controls over graph -->
+        <div class="graph-controls">
+            <button class="ctrl-btn" id="fitBtn">
+                <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                    <path d="M1 5V1h4M9 1h4v4M13 9v4H9M5 13H1V9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Fit Graph
+            </button>
+            <button class="ctrl-btn active" id="overlayBtn">
+                <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                    <circle cx="7" cy="7" r="3" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M7 1v2M7 11v2M1 7h2M11 7h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                Hide Labels
+            </button>
+        </div>
+
+        <!-- Node detail popup -->
+        <div class="node-popup" id="nodePopup">
+            <div class="node-popup-header">
+                <span class="node-popup-type" id="nodePopupType"></span>
+                <button class="node-popup-close" id="nodePopupClose">✕</button>
+            </div>
+            <div class="node-popup-body" id="nodePopupBody"></div>
+        </div>
+    </div>
+
+    <!-- Right: Chat Panel -->
+    <div class="chat-panel" id="chatPanel">
+        <div class="chat-header">
+            <div class="chat-header-title">Chat with Graph</div>
+            <div class="chat-header-sub">Order to Cash</div>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <!-- Initial agent greeting -->
+            <div class="chat-row agent-row">
+                <div class="agent-avatar">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="8" r="4" stroke="white" stroke-width="2"/>
+                        <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <div class="chat-bubble-agent">
+                    <div class="agent-name">Graph Agent</div>
+                    <div>Hi! I can help you analyze the <strong>Order to Cash</strong> process.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-footer">
+            <div class="chat-status">
+                <span class="status-dot"></span>
+                <span class="status-text">Agent is awaiting instructions</span>
+            </div>
+            <div class="chat-input-row">
+                <textarea id="userInput" placeholder="Analyze anything" rows="1"></textarea>
+                <button class="send-btn" id="sendBtn" onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="app.js?v=4"></script>
+</body>
+</html>
