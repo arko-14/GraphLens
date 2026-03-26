@@ -119,7 +119,9 @@ class HybridRetrievalService:
         lower_query = user_query.lower()
         emb = self.embed_query(user_query)
         v_results = self.vector_search(emb) if emb else []
-        node_ids = [r['id'] for r in v_results]
+        # Filter out any None or invalid results to prevent crashes
+        v_results = [r for r in v_results if r and isinstance(r, dict)]
+        node_ids = [r['id'] for r in v_results if 'id' in r]
         g_results = self.graph_expand(node_ids)
         
         # Improved ID Extraction for various O2C stages (Sales Order '74...', Delivery '80...', Billing '90...')
@@ -237,7 +239,11 @@ class HybridRetrievalService:
                 logger.error(f"Broken flow block failed: {e}")
 
         # Gather node objects that are highly relevant to dynamically draw/highlight in UI
-        highlight_nodes = [{"id": r['id'], "label": r.get('description', r.get('name', r['id']))[:20], "group": "Product"} for r in v_results]
+        highlight_nodes = []
+        for r in v_results:
+            if r and isinstance(r, dict) and 'id' in r:
+                label = str(r.get('description', r.get('name', r['id'])))[:20]
+                highlight_nodes.append({"id": r['id'], "label": label, "group": "Product"})
         
         answer = self.synthesize_answer(user_query, v_results, g_results, history)
         return {"answer": answer, "nodes": highlight_nodes}
