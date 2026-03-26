@@ -202,12 +202,11 @@ class HybridRetrievalService:
                 ORDER BY unmatched_deliveries DESC LIMIT 10
                 """
                 
-                # Case 2: BillingDocuments with NO delivery link
+                # Case 2: BillingDocuments with NO delivery link (Highly unlikely in this schema, but for completeness)
                 billed_no_delivery_q = """
-                MATCH (so:SalesOrder)-[:HAS_ITEM]->(si:SalesOrderItem)
-                WHERE NOT (si)-[:SHIPPED_IN]->(:DeliveryItem)
-                  AND (si)<-[:FULFILLS]-(:BillingDocumentItem)
-                RETURN DISTINCT so.id AS sales_order_id
+                MATCH (bi:BillingDocumentItem)<-[:HAS_ITEM]-(bd:BillingDocument)
+                WHERE NOT (bi)-[:BILLED_IN]->(:DeliveryItem)
+                RETURN DISTINCT bd.id AS billing_id
                 LIMIT 10
                 """
                 
