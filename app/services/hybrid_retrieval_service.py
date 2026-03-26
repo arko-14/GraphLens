@@ -135,12 +135,10 @@ class HybridRetrievalService:
                 WITH n
                 OPTIONAL MATCH (so:SalesOrder) WHERE so.id = n.id OR (n:SalesOrderItem AND (so)-[:HAS_ITEM]->(n))
                 OPTIONAL MATCH (so)-[:HAS_ITEM]->(si:SalesOrderItem)
-                OPTIONAL MATCH (si)<-[:SHIPPED_IN]-(di:DeliveryItem)<-[:HAS_ITEM]-(d:Delivery)
-                OPTIONAL MATCH (di)<-[:BILLED_IN]-(bi:BillingDocumentItem)<-[:HAS_ITEM]-(bd:BillingDocument)
-                OPTIONAL MATCH (bd)-[:RECORDED_IN]->(je:JournalEntry)
-                OPTIONAL MATCH (je)-[:CLEARED_BY]->(pay:Payment)
+                OPTIONAL MATCH (si)-[:SHIPPED_IN]->(di:DeliveryItem)<-[:HAS_ITEM]-(d:Delivery)
+                OPTIONAL MATCH (di)-[:BILLED_IN]->(bi:BillingDocumentItem)<-[:HAS_ITEM]-(bd:BillingDocument)
                 OPTIONAL MATCH (si)-[:REQUESTS_PRODUCT]->(p:Product)
-                OPTIONAL MATCH (so)<-[:PLACE_ORDER]-(c:Customer)
+                OPTIONAL MATCH (c:Customer)-[:PLACED_ORDER]->(so)
                 RETURN 
                     properties(so) AS sales_order,
                     collect(DISTINCT properties(si)) AS sales_order_items,
@@ -149,9 +147,7 @@ class HybridRetrievalService:
                     collect(DISTINCT properties(bd)) AS billing_documents,
                     collect(DISTINCT properties(bi)) AS billing_items,
                     collect(DISTINCT properties(c)) AS customers,
-                    collect(DISTINCT properties(p)) AS products,
-                    collect(DISTINCT properties(je)) AS journal_entries,
-                    collect(DISTINCT properties(pay)) AS payments
+                    collect(DISTINCT properties(p)) AS products
                 LIMIT 1
                 """
                 retries = 2
