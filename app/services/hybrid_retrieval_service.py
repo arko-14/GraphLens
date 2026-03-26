@@ -84,6 +84,7 @@ class HybridRetrievalService:
             "GUIDELINES:\\n"
             "- If the question is about the dataset (Orders, Customers, Deliveries, Billing, Products, Plants), answer accurately using ONLY the provided context.\\n"
             "- **STRICT NO-HALLUCINATION POLICY**: If the context is empty or does not contain the specific ID/Product requested, you MUST say: 'I found no data for [Entity] in the current dataset.'\\n"
+            "- **SEARCH TIPS**: If the context is empty, suggest that the user provide a specific ID like **740552** (Sales Order), **80738072** (Delivery), or **90504248** (Billing) to get started.\\n"
             "- **NEVER** invent placeholder IDs, names, or prices (e.g. do not use SO-123, Product A, $100 unless they are in the context).\\n"
             "- If the question is slightly out of scope but related to logistics or business, try to be helpful while staying grounded in the data.\\n"
             "- If the question is completely unrelated to the dataset (e.g. general trivia, creative writing), politely state: "
@@ -96,8 +97,7 @@ class HybridRetrievalService:
             "  2. **Step 2 — Delivery**: ID=..., Status=...\\n"
             "  3. **Step 3 — Billing**: ID=..., Total=...\\n"
             "  4. **Step 4 — Payment**: ...\\n"
-            "- Use tables for lists of items to ensure visual clarity.\\n"
-            "- If you find 'Broken Flow' evidence (Missing relationships), clearly highlight it as an alert or bolded note."
+            "- Use tables for lists of items to ensure visual clarity."
         )
         messages = [{"role": "system", "content": sys_prompt}]
         if history:
@@ -167,7 +167,7 @@ class HybridRetrievalService:
 
         if "highest" in lower_query or "most" in lower_query or "billing documents" in lower_query:
             agg_query = """
-            MATCH (p:Product)<-[:REQUESTS_PRODUCT]-(si:SalesOrderItem)<-[:SHIPPED_IN]-(di:DeliveryItem)<-[:BILLED_IN]-(bi:BillingDocumentItem)<-[:HAS_ITEM]-(bd:BillingDocument)
+            MATCH (p:Product)<-[:REQUESTS_PRODUCT]-(si:SalesOrderItem)-[:SHIPPED_IN]->(di:DeliveryItem)-[:BILLED_IN]->(bi:BillingDocumentItem)<-[:HAS_ITEM]-(bd:BillingDocument)
             RETURN p.id AS product_id, p.description AS name, count(DISTINCT bd.id) AS billing_document_count
             ORDER BY billing_document_count DESC LIMIT 5
             """
