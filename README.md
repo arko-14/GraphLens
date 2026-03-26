@@ -5,7 +5,7 @@ This repository contains a full **Context Graph System** using Neo4j, Groq (Llam
 ---
 ### 🚀 Production Status: [LIVE]
 The system is fully deployed and production-hardened:
-- **Frontend/Backend**: [https://graph-rag-engine.onrender.com](https://graph-rag-engine.onrender.com) (Render)
+- **Frontend/Backend**: [https://graphlens-wf7m.onrender.com/](https://graphlens-wf7m.onrender.com/) (Render)
 - **Database**: Neo4j Aura Cloud (Persistent)
 - **Hardening**: Built-in retry loops (3x), 60s connection lifetimes, and strict No-Hallucination guardrails.
 ---
