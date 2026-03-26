@@ -1,6 +1,14 @@
-# Graph-Based Data Modeling and Query System (SAP O2C)
+# GraphLens / SAP Order-to-Cash (Graph RAG)
 
 This repository contains a full **Context Graph System** using Neo4j, Groq (Llama 3), and FastAPI to analyze the SAP Order-to-Cash process.
+
+---
+### 🚀 Production Status: [LIVE]
+The system is fully deployed and production-hardened:
+- **Frontend/Backend**: [https://graph-rag-engine.onrender.com](https://graph-rag-engine.onrender.com) (Render)
+- **Database**: Neo4j Aura Cloud (Persistent)
+- **Hardening**: Built-in retry loops (3x), 60s connection lifetimes, and strict No-Hallucination guardrails.
+---
 
 ## Architecture Decisions & Constraints
 

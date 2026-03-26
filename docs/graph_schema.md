@@ -35,7 +35,7 @@ Based on the raw data investigation, here are the main entities and their struct
 - `(:Payment {id, clearingDate, amountInTransactionCurrency})`
 
 ### Relationship Types
-- `(:Customer)-[:PLACE_ORDER]->(:SalesOrder)`
+- `(:Customer)-[:PLACED_ORDER]->(:SalesOrder)`
 - `(:SalesOrder)-[:HAS_ITEM]->(:SalesOrderItem)`
 - `(:SalesOrderItem)-[:REQUESTS_PRODUCT]->(:Product)`
 - `(:SalesOrderItem)-[:SHIPPED_IN]->(:DeliveryItem)` *(inferred via `referenceSdDocument`)*

@@ -1,6 +1,6 @@
 # Deployment Guide 🚀
 
-This guide explains how to deploy the **Nexus-O2C Graph RAG Engine** to **Render.com** using **Neo4j Aura Cloud**.
+This guide explains how to deploy the **GraphLens Graph RAG Engine** to **Render.com** using **Neo4j Aura Cloud**.
 
 ## 1. Neo4j Aura Cloud (The Database)
 - Sign up for a free instance at [neo4j.com/cloud/aura](https://neo4j.com/cloud/aura/).

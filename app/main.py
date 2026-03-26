@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 from neo4j.exceptions import ServiceUnavailable, SessionExpired, Neo4jError
 from app.api.routes import search, graph, health, entities
 
-app = FastAPI(title="Graph RAG Engine - SAP O2C")
+app = FastAPI(title="GraphLens / SAP Order-to-Cash Graph RAG Engine")
 
 app.add_middleware(
     CORSMiddleware,
